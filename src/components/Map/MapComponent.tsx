@@ -298,6 +298,27 @@ const MapComponent = () => {
                         chunkedLoading
                         maxClusterRadius={50}
                         spiderfyOnMaxZoom={true}
+                        iconCreateFunction={(cluster) => {
+                            const count = cluster.getChildCount();
+                            let size = 'w-10 h-10';
+                            let color = 'bg-cyan-500';
+
+                            if (count > 100) {
+                                size = 'w-14 h-14';
+                                color = 'bg-blue-600';
+                            } else if (count > 20) {
+                                size = 'w-12 h-12';
+                                color = 'bg-cyan-600';
+                            }
+
+                            return L.divIcon({
+                                html: `<div class="${size} ${color} rounded-full flex items-center justify-center text-white font-black border-4 border-white/20 shadow-xl backdrop-blur-sm transition-transform hover:scale-110">
+                                        ${count}
+                                       </div>`,
+                                className: 'custom-cluster-marker',
+                                iconSize: L.point(40, 40, true),
+                            });
+                        }}
                     >
                         {networks.map((network) => (
                             <Marker
