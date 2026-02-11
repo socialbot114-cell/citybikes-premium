@@ -11,7 +11,6 @@ interface DashboardProps {
     onClose: () => void;
 }
 
-const COLORS = ['#06b6d4', '#22c55e', '#f97316', '#ef4444'];
 
 export const SmartDashboard: React.FC<DashboardProps> = ({ onClose }) => {
     const { selectedNetwork, weather, airQuality } = useCityBikes();
