@@ -35,7 +35,7 @@ export const NetworkSearch = () => {
     };
 
     return (
-        <div className="absolute top-6 left-1/2 -translate-x-1/2 z-[1000] flex items-center gap-4 font-sans w-full max-w-2xl px-4 pointer-events-none">
+        <div className="absolute top-6 left-1/2 -translate-x-1/2 z-[5000] flex items-center gap-4 font-sans w-full max-w-2xl px-4 pointer-events-none">
             <div className="flex-1 max-w-md pointer-events-auto">
                 <div className="relative group w-full">
                     <div className="absolute -inset-0.5 bg-gradient-to-r from-cyan-400 to-blue-500 rounded-xl blur opacity-30 group-hover:opacity-100 transition duration-500"></div>
