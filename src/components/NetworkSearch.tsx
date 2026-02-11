@@ -15,8 +15,8 @@ export const NetworkSearch = () => {
         setQuery(val);
         if (val.length > 1) {
             const filtered = networks.filter(n =>
-                n.name.toLowerCase().includes(val.toLowerCase()) ||
-                n.location.city.toLowerCase().includes(val.toLowerCase())
+                (n.name || '').toLowerCase().includes(val.toLowerCase()) ||
+                (n.location.city || '').toLowerCase().includes(val.toLowerCase())
             );
 
             // Sort: Favorites first, then name
