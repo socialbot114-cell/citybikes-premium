@@ -40,7 +40,7 @@ export const SmartLayers: React.FC = () => {
                 <React.Fragment key={quake.id}>
                     <Marker
                         position={[quake.latitude, quake.longitude]}
-                        icon={createCustomMarker('alert', quake.magnitude > 5 ? '#ef4444' : '#f97316', `<span class="text-[8px] font-black text-white">${quake.magnitude}</span>`)}
+                        icon={createCustomMarker(quake.magnitude > 5 ? '#ef4444' : '#f97316', `<span class="text-[8px] font-black text-white">${quake.magnitude}</span>`)}
                     >
                         <Popup className="premium-popup">
                             <div className="p-2">
