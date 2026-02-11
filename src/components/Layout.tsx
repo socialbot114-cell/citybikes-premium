@@ -8,9 +8,9 @@ interface LayoutProps {
 
 export const Layout: React.FC<LayoutProps> = ({ children }) => {
     return (
-        <div className="flex h-screen w-screen bg-white dark:bg-[#0B0F19] transition-colors duration-500 text-slate-900 dark:text-slate-100 overflow-hidden">
+        <div className="flex h-screen w-screen bg-slate-50 dark:bg-[#0B0F19] transition-colors duration-500 text-slate-900 dark:text-slate-100 overflow-hidden">
             {/* Sidebar */}
-            <aside className="w-16 md:w-20 flex flex-col items-center py-6 bg-white dark:bg-slate-800/50 backdrop-blur-md border-r border-slate-200 dark:border-slate-700/50 z-20 transition-colors">
+            <aside className="w-16 md:w-20 flex flex-col items-center py-6 bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 z-20 transition-colors">
                 <div className="mb-8">
                     <div className="w-10 h-10 rounded-xl bg-blue-500/20 text-blue-600 dark:text-blue-400 flex items-center justify-center font-bold text-xl shadow-[0_0_15px_rgba(59,130,246,0.3)] dark:shadow-[0_0_15px_rgba(59,130,246,0.5)]">
                         C
