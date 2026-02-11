@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, useMap, ZoomControl, Polyline } from 'react-leaflet';
 import MarkerClusterGroup from 'react-leaflet-cluster';
 import * as L from 'leaflet';
@@ -12,7 +12,6 @@ import { Cloud, Zap, AlertTriangle, Droplet, Navigation2, Star, LocateFixed, Nav
 import { motion, AnimatePresence } from 'framer-motion';
 import { SmartDashboard } from '../Dashboard/SmartDashboard';
 
-// ... (DefaultIcon and MapEventListener logic remains the same)
 // Fix Leaflet default icon logic for Vite/Webpack
 import iconUrl from 'leaflet/dist/images/marker-icon.png';
 import shadowUrl from 'leaflet/dist/images/marker-shadow.png';
@@ -48,14 +47,6 @@ const MapEventListener = () => {
     return null;
 };
 
-const MapUpdater = ({ center, zoom }: { center: [number, number], zoom: number }) => {
-    const map = useMap();
-    useEffect(() => {
-        map.setView(center, zoom);
-    }, [center, zoom, map]);
-    return null;
-};
-
 const MapComponent = () => {
     const {
         networks, selectedNetwork, selectNetwork, userLocation, clearSelection,
@@ -66,23 +57,38 @@ const MapComponent = () => {
     const { theme } = useTheme();
     const [mapRef, setMapRef] = useState<L.Map | null>(null);
     const [showDashboard, setShowDashboard] = useState(false);
+    const [hasInitialCentered, setHasInitialCentered] = useState(false);
+
+    // Initial Center Logic
+    useEffect(() => {
+        if (mapRef && !hasInitialCentered && userLocation) {
+            mapRef.setView([userLocation.latitude, userLocation.longitude], 11);
+            setHasInitialCentered(true);
+        } else if (mapRef && !hasInitialCentered && !userLocation) {
+            // Default to Paris if no user location yet
+            mapRef.setView([48.8566, 2.3522], 3);
+            setHasInitialCentered(true);
+        }
+    }, [mapRef, userLocation, hasInitialCentered]);
+
+    // Focus on Selected Network
+    useEffect(() => {
+        if (mapRef && selectedNetwork) {
+            mapRef.setView(
+                [selectedNetwork.location.latitude, selectedNetwork.location.longitude],
+                13,
+                { animate: true }
+            );
+        }
+    }, [mapRef, selectedNetwork]);
 
     const handleLocateMe = () => {
         if (userLocation && mapRef) {
-            mapRef.setView([userLocation.latitude, userLocation.longitude], 13);
+            mapRef.setView([userLocation.latitude, userLocation.longitude], 13, { animate: true });
         }
     };
 
-    // Default center (e.g., Paris or User Location)
-    const defaultCenter: [number, number] = userLocation
-        ? [userLocation.latitude, userLocation.longitude]
-        : [48.8566, 2.3522];
-
-    const center = selectedNetwork
-        ? [selectedNetwork.location.latitude, selectedNetwork.location.longitude] as [number, number]
-        : defaultCenter;
-
-    const zoom = selectedNetwork ? 13 : (userLocation ? 11 : 3);
+    const defaultCenter: [number, number] = [48.8566, 2.3522]; // Paris default
 
     return (
         <div className="h-full w-full relative group">
@@ -191,7 +197,7 @@ const MapComponent = () => {
                 )}
             </AnimatePresence>
 
-            {/* Layer Control Panel */}
+            {/* Layer Control Panel - Keep as is... */}
             <div className="absolute top-6 right-6 z-[1000] flex flex-col gap-2">
                 <div className="glass-premium p-2 rounded-2xl border border-white/10 shadow-2xl flex flex-col gap-1">
                     <LayerToggle
@@ -232,8 +238,8 @@ const MapComponent = () => {
             </div>
 
             <MapContainer
-                center={center}
-                zoom={zoom}
+                center={defaultCenter} // Initial center only
+                zoom={3} // Initial zoom only
                 zoomControl={false}
                 style={{ height: '100%', width: '100%' }}
                 className="z-0"
@@ -247,7 +253,7 @@ const MapComponent = () => {
                     attribution='&copy; OSM &copy; CARTO'
                 />
                 <ZoomControl position="bottomright" />
-                <MapUpdater center={center} zoom={zoom} />
+                {/* MapUpdater removed to prevent snap-back loop */}
                 <MapEventListener />
                 <SmartLayers />
 
