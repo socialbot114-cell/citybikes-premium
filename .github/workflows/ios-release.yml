@@ -40,7 +40,7 @@ jobs:
           security list-keychains -d user -s "$KEYCHAIN_PATH"
           security default-keychain -s "$KEYCHAIN_PATH"
           mkdir -p "$HOME/Library/MobileDevice/Provisioning Profiles"
-          cp "$RUNNER_TEMP/CityBikes.mobileprovision" "$HOME/Library/MobileDevice/Provisioning Profiles/1474ffea-ac1f-4161-8184-baec84bceab5.mobileprovision"
+          cp "$RUNNER_TEMP/CityBikes.mobileprovision" "$HOME/Library/MobileDevice/Provisioning Profiles/62831625-33d1-4853-8713-01f9e9be065d.mobileprovision"
       - name: Install dependencies and build web app
         run: |
           npm ci
@@ -54,7 +54,7 @@ jobs:
             -archivePath "$RUNNER_TEMP/CityBikes.xcarchive" \
             CODE_SIGN_STYLE=Manual CODE_SIGN_IDENTITY="Apple Distribution" \
             PROVISIONING_PROFILE_SPECIFIER="CityBikes Premium App Store 2026" \
-            DEVELOPMENT_TEAM=SRN7AW424S PRODUCT_BUNDLE_IDENTIFIER=com.citybikes \
+            DEVELOPMENT_TEAM=SRN7AW424S PRODUCT_BUNDLE_IDENTIFIER=br.com.citybikes \
             CURRENT_PROJECT_VERSION=1 MARKETING_VERSION=1.0.0 archive
       - name: Package IPA
         run: |
@@ -71,7 +71,7 @@ jobs:
           unzip -q "${ipa[0]}" -d "$RUNNER_TEMP/ipa-unpacked"
           app=("$RUNNER_TEMP"/ipa-unpacked/Payload/*.app)
           test -f "${app[0]}/PrivacyInfo.xcprivacy"
-          /usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "${app[0]}/Info.plist" | grep -qx 'com.citybikes'
+          /usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "${app[0]}/Info.plist" | grep -qx 'br.com.citybikes'
           /usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "${app[0]}/Info.plist" | grep -qx '1'
           codesign --verify --deep --strict "${app[0]}"
       - name: Upload IPA artifact
