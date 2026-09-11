@@ -56,8 +56,13 @@ jobs:
             PROVISIONING_PROFILE_SPECIFIER="CityBikes Premium App Store 2026" \
             DEVELOPMENT_TEAM=SRN7AW424S PRODUCT_BUNDLE_IDENTIFIER=com.citybikes \
             CURRENT_PROJECT_VERSION=1 MARKETING_VERSION=1.0.0 archive
-      - name: Export IPA
-        run: xcodebuild -exportArchive -archivePath "$RUNNER_TEMP/CityBikes.xcarchive" -exportOptionsPlist ios/App/ExportOptions.plist -exportPath "$RUNNER_TEMP/export"
+      - name: Package IPA
+        run: |
+          rm -rf "$RUNNER_TEMP/export" "$RUNNER_TEMP/Payload"
+          mkdir -p "$RUNNER_TEMP/export" "$RUNNER_TEMP/Payload"
+          cp -R "$RUNNER_TEMP/CityBikes.xcarchive/Products/Applications/App.app" "$RUNNER_TEMP/Payload/CityBikes Premium.app"
+          cd "$RUNNER_TEMP"
+          zip -qry "$RUNNER_TEMP/export/CityBikes-Premium.ipa" Payload
       - name: Validate IPA
         run: |
           ipa=("$RUNNER_TEMP"/export/*.ipa)
