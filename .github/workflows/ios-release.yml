@@ -40,7 +40,7 @@ jobs:
           security list-keychains -d user -s "$KEYCHAIN_PATH"
           security default-keychain -s "$KEYCHAIN_PATH"
           mkdir -p "$HOME/Library/MobileDevice/Provisioning Profiles"
-          cp "$RUNNER_TEMP/CityBikes.mobileprovision" "$HOME/Library/MobileDevice/Provisioning Profiles/c6cd5d9b-ec18-4c8e-9cdb-6fba8bf05d0c.mobileprovision"
+          cp "$RUNNER_TEMP/CityBikes.mobileprovision" "$HOME/Library/MobileDevice/Provisioning Profiles/1474ffea-ac1f-4161-8184-baec84bceab5.mobileprovision"
       - name: Install dependencies and build web app
         run: |
           npm ci
