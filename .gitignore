@@ -22,3 +22,23 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Capacitor
+capacitor.config.local.ts
+android/local.properties
+android/keystore.properties
+android/app/citybikes-release.keystore
+android/.gradle/
+android/app/build/
+android/captures/
+android/cordova/
+android/capacitor-cordova-android-plugins/.gradle/
+android/capacitor-cordova-android-plugins/build/
+*.keystore
+
+# macOS
+*.orig
+
+# Scripts (not for production)
+scripts/
+assets.config

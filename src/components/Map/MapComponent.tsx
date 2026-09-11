@@ -1,16 +1,16 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, useMap, ZoomControl, Polyline } from 'react-leaflet';
 import MarkerClusterGroup from 'react-leaflet-cluster';
 import * as L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { useTranslation } from 'react-i18next';
 import { useCityBikes } from '../../context/CityBikesContext';
-import { useTheme } from '../../context/ThemeContext';
 import { SmartLayers } from './SmartLayers';
 import { bikeIcon } from './CustomMarkers';
-import { Cloud, Zap, AlertTriangle, Droplet, Navigation2, Star, LocateFixed, Navigation, LayoutDashboard } from 'lucide-react';
+import { Cloud, Zap, AlertTriangle, Droplet, Star, LocateFixed, Navigation, LayoutDashboard, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { SmartDashboard } from '../Dashboard/SmartDashboard';
+import { trackEvent } from '../../lib/analytics';
 
 // Fix Leaflet default icon logic for Vite/Webpack
 import iconUrl from 'leaflet/dist/images/marker-icon.png';
@@ -31,16 +31,31 @@ L.Marker.prototype.options.icon = DefaultIcon;
 const MapEventListener = () => {
     const map = useMap();
     const { fetchSmartData } = useCityBikes();
+    const lastCenter = useRef<{ lat: number; lng: number } | null>(null);
+    const timer = useRef<number | null>(null);
 
     useEffect(() => {
         const handleMoveEnd = () => {
             const center = map.getCenter();
-            fetchSmartData(center.lat, center.lng);
+            // Round to ~0.05 degree grid and ignore tiny pans
+            const round = (v: number) => Math.round(v * 20) / 20;
+            const lat = round(center.lat);
+            const lng = round(center.lng);
+
+            const last = lastCenter.current;
+            if (last && Math.abs(last.lat - lat) < 0.001 && Math.abs(last.lng - lng) < 0.001) return;
+
+            if (timer.current) window.clearTimeout(timer.current);
+            timer.current = window.setTimeout(() => {
+                lastCenter.current = { lat, lng };
+                fetchSmartData(lat, lng);
+            }, 600);
         };
 
         map.on('moveend', handleMoveEnd);
         return () => {
             map.off('moveend', handleMoveEnd);
+            if (timer.current) window.clearTimeout(timer.current);
         };
     }, [map, fetchSmartData]);
 
@@ -49,27 +64,30 @@ const MapEventListener = () => {
 
 const MapComponent = () => {
     const {
-        networks, selectedNetwork, selectNetwork, userLocation, clearSelection,
+        networks, networksError, refreshNetworks, selectedNetwork, selectNetwork, userLocation, clearSelection,
         weather, airQuality, smartLayers, toggleSmartLayer, favorites,
-        toggleFavoriteNetwork, toggleFavoriteStation, currentRoute, fetchRoute
+        toggleFavoriteNetwork, toggleFavoriteStation, currentRoute, fetchRoute,
+        requestLocation
     } = useCityBikes();
     const { t } = useTranslation();
-    const { theme } = useTheme();
     const [mapRef, setMapRef] = useState<L.Map | null>(null);
     const [showDashboard, setShowDashboard] = useState(false);
-    const [hasInitialCentered, setHasInitialCentered] = useState(false);
+    const didInitialViewRef = useRef(false);
 
-    // Initial Center Logic
+    // Initial world view (shown before any location is available)
     useEffect(() => {
-        if (mapRef && !hasInitialCentered && userLocation) {
-            mapRef.setView([userLocation.latitude, userLocation.longitude], 11);
-            setHasInitialCentered(true);
-        } else if (mapRef && !hasInitialCentered && !userLocation) {
-            // Default to Paris if no user location yet
-            mapRef.setView([48.8566, 2.3522], 3);
-            setHasInitialCentered(true);
+        if (mapRef && !didInitialViewRef.current) {
+            mapRef.setView([20, 0], 2);
+            didInitialViewRef.current = true;
         }
-    }, [mapRef, userLocation, hasInitialCentered]);
+    }, [mapRef]);
+
+    // Recenter on user location once it becomes available
+    useEffect(() => {
+        if (mapRef && userLocation) {
+            mapRef.setView([userLocation.latitude, userLocation.longitude], 11, { animate: true });
+        }
+    }, [mapRef, userLocation]);
 
     // Focus on Selected Network
     useEffect(() => {
@@ -85,10 +103,12 @@ const MapComponent = () => {
     const handleLocateMe = () => {
         if (userLocation && mapRef) {
             mapRef.setView([userLocation.latitude, userLocation.longitude], 13, { animate: true });
+        } else {
+            requestLocation();
         }
     };
 
-    const defaultCenter: [number, number] = [48.8566, 2.3522]; // Paris default
+    const defaultCenter: [number, number] = [20, 0]; // world view
 
     return (
         <div className="h-full w-full relative group">
@@ -99,37 +119,40 @@ const MapComponent = () => {
                         initial={{ opacity: 0, y: -20 }}
                         animate={{ opacity: 1, y: 0 }}
                         exit={{ opacity: 0, y: -20 }}
-                        className="absolute top-6 left-6 z-[1000] flex flex-col gap-4 max-w-sm pointer-events-none"
+                        className="map-context-overlay fixed bottom-[calc(76px+env(safe-area-inset-bottom))] md:absolute md:top-6 md:bottom-auto left-0 md:left-6 right-0 md:right-auto z-[1000] flex flex-col gap-3 px-3 md:px-0 max-w-none md:max-w-sm pointer-events-none max-h-[42dvh] overflow-y-auto"
                     >
                         {/* Selected Network Info */}
                         {selectedNetwork && (
-                            <div className="glass-premium p-4 rounded-2xl border border-white/10 shadow-2xl pointer-events-auto">
-                                <div className="flex items-center justify-between mb-4">
-                                    <div className="flex items-center gap-3">
+                            <div className="glass-premium p-3 md:p-4 rounded-2xl border border-white/10 shadow-2xl pointer-events-auto">
+                                <div className="flex items-start justify-between gap-2 mb-3">
+                                    <div className="flex items-start gap-2 min-w-0">
                                         <button
+                                            aria-label="Toggle favorite network"
                                             onClick={() => toggleFavoriteNetwork(selectedNetwork.id)}
-                                            className="p-1.5 hover:bg-slate-100 dark:hover:bg-white/10 rounded-lg transition-colors"
+                                            className="flex h-11 w-11 shrink-0 items-center justify-center hover:bg-slate-100 dark:hover:bg-white/10 rounded-lg transition-colors"
                                         >
                                             <Star className={`w-5 h-5 ${favorites.networks.includes(selectedNetwork.id) ? 'fill-yellow-400 text-yellow-500' : 'text-slate-400'}`} />
                                         </button>
-                                        <div>
-                                            <h2 className="text-xl font-black text-slate-800 dark:text-white leading-tight">{selectedNetwork.name}</h2>
-                                            <p className="text-xs text-slate-500 dark:text-cyan-400 font-bold uppercase tracking-widest">{selectedNetwork.location.city}</p>
+                                        <div className="min-w-0">
+                                            <h2 className="text-base md:text-xl font-black text-slate-800 dark:text-white leading-tight break-words">{selectedNetwork.name}</h2>
+                                             <p className="text-xs text-slate-500 dark:text-emerald-400 font-bold uppercase tracking-widest">{selectedNetwork.location.city}</p>
                                         </div>
                                     </div>
-                                    <div className="flex items-center gap-2">
+                                    <div className="flex items-center gap-1 shrink-0">
                                         <button
-                                            onClick={() => setShowDashboard(true)}
-                                            className="p-2 bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-500 rounded-xl transition-all"
+                                            aria-label="View analytics"
+                                            onClick={() => { trackEvent('DASHBOARD_OPENED'); setShowDashboard(true); }}
+                                             className="flex h-11 w-11 items-center justify-center bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-500 rounded-xl transition-all"
                                             title="View Analytics"
                                         >
                                             <LayoutDashboard className="w-4 h-4" />
                                         </button>
                                         <button
+                                            aria-label="Close network details"
                                             onClick={clearSelection}
-                                            className="p-2 bg-slate-200 dark:bg-white/10 hover:bg-slate-300 dark:hover:bg-white/20 rounded-xl transition-all"
+                                            className="flex h-11 w-11 items-center justify-center bg-slate-200 dark:bg-white/10 hover:bg-slate-300 dark:hover:bg-white/20 rounded-xl transition-all"
                                         >
-                                            <Navigation2 className="w-4 h-4 text-slate-700 dark:text-white rotate-45" />
+                                            <X className="w-4 h-4 text-slate-700 dark:text-white" />
                                         </button>
                                     </div>
                                 </div>
@@ -138,8 +161,8 @@ const MapComponent = () => {
                                         <div className="text-[10px] text-green-600 dark:text-green-400 font-bold uppercase">{t('bikes')}</div>
                                         <div className="text-lg font-black dark:text-white">{selectedNetwork.stations.reduce((acc, s) => acc + s.free_bikes, 0)}</div>
                                     </div>
-                                    <div className="p-2 bg-blue-500/5 border border-blue-500/10 rounded-xl">
-                                        <div className="text-[10px] text-blue-600 dark:text-blue-400 font-bold uppercase">{t('slots')}</div>
+                                     <div className="p-2 bg-teal-500/5 border border-teal-500/10 rounded-xl">
+                                         <div className="text-[10px] text-teal-600 dark:text-teal-400 font-bold uppercase">{t('slots')}</div>
                                         <div className="text-lg font-black dark:text-white">
                                             {selectedNetwork.stations.reduce((acc, s) => acc + (s.empty_slots || 0), 0)}
                                         </div>
@@ -149,23 +172,23 @@ const MapComponent = () => {
                         )}
 
                         {/* Weather & Air Quality Glow Card */}
-                        {weather && airQuality && (
+                        {selectedNetwork && weather && airQuality && (
                             <motion.div
                                 initial={{ opacity: 0, x: -20 }}
                                 animate={{ opacity: 1, x: 0 }}
-                                className="glass-premium p-5 rounded-3xl border border-white/10 shadow-[0_20px_50px_rgba(0,0,0,0.3)] pointer-events-auto overflow-hidden relative min-w-[240px]"
+                                className="glass-premium p-4 md:p-5 rounded-3xl border border-white/10 shadow-[0_20px_50px_rgba(0,0,0,0.3)] pointer-events-auto overflow-hidden relative w-full"
                             >
-                                <div className="absolute top-0 right-0 w-32 h-32 bg-cyan-500/20 blur-3xl rounded-full -translate-y-1/2 translate-x-1/2" />
+                                 <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/20 blur-3xl rounded-full -translate-y-1/2 translate-x-1/2" />
 
                                 <div className="relative z-10">
                                     <div className="flex items-center justify-between mb-4">
                                         <div className="flex items-center gap-3">
-                                            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-cyan-500/20 to-blue-500/20 flex items-center justify-center border border-cyan-500/20 shadow-inner">
-                                                <Cloud className="w-6 h-6 text-cyan-400" />
+                                             <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-emerald-500/20 to-teal-500/20 flex items-center justify-center border border-emerald-500/20 shadow-inner">
+                                                 <Cloud className="w-6 h-6 text-emerald-400" />
                                             </div>
                                             <div>
                                                 <div className="text-3xl font-black text-slate-800 dark:text-white tracking-tighter leading-none">{weather.temperature}°C</div>
-                                                <div className="text-[10px] font-black text-cyan-500 uppercase tracking-widest mt-1">{weather.description}</div>
+                                                 <div className="text-[10px] font-black text-emerald-500 uppercase tracking-widest mt-1">{weather.description}</div>
                                             </div>
                                         </div>
                                     </div>
@@ -197,15 +220,36 @@ const MapComponent = () => {
                 )}
             </AnimatePresence>
 
-            {/* Layer Control Panel - Keep as is... */}
-            <div className="absolute top-6 right-6 z-[1000] flex flex-col gap-2">
-                <div className="glass-premium p-2 rounded-2xl border border-white/10 shadow-2xl flex flex-col gap-1">
-                    <LayerToggle
-                        active={true}
-                        icon={<Navigation2 className="w-4 h-4" />}
-                        label="Bikes"
-                        onClick={() => { }}
-                    />
+            {/* API error banner */}
+            <AnimatePresence>
+                {networksError && (
+                    <motion.div
+                        initial={{ opacity: 0, y: -20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -20 }}
+                        className="fixed top-[calc(5rem+env(safe-area-inset-top))] md:absolute md:top-6 left-3 right-3 md:left-6 md:right-auto z-[1001] glass-premium px-4 py-3 rounded-2xl border border-red-500/30 shadow-2xl flex items-center gap-3 max-w-none md:max-w-sm pointer-events-auto"
+                    >
+                        <AlertTriangle className="w-5 h-5 text-red-400 shrink-0" />
+                        <div className="min-w-0 text-sm text-red-700 dark:text-red-200 break-words">
+                            Failed to load networks — map data may be incomplete.
+                        </div>
+                        <button
+                            onClick={() => refreshNetworks()}
+                            className="px-4 py-1.5 rounded-lg bg-red-500 hover:bg-red-600 text-white text-sm font-semibold transition-colors shrink-0"
+                        >
+                            Retry
+                        </button>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+
+            {/* Layer Control Panel */}
+            <div className="map-layer-controls fixed top-[calc(4.75rem+env(safe-area-inset-top))] md:absolute md:top-[calc(1.5rem+env(safe-area-inset-top))] md:bottom-auto right-3 md:right-6 z-[1000] flex flex-col gap-2">
+                <div
+                    role="group"
+                    aria-label="Map layers"
+                    className="glass-premium p-1.5 md:p-2 rounded-2xl border border-white/10 shadow-2xl flex flex-col gap-1"
+                >
                     <LayerToggle
                         active={smartLayers.evStations}
                         icon={<Zap className="w-4 h-4" />}
@@ -230,9 +274,10 @@ const MapComponent = () => {
                     <button
                         onClick={handleLocateMe}
                         className="w-12 h-12 flex items-center justify-center text-slate-600 dark:text-white hover:bg-slate-100 dark:hover:bg-white/10 transition-colors"
+                        aria-label="Find near me"
                         title="Find Near Me"
                     >
-                        <LocateFixed className="w-5 h-5 text-cyan-500" />
+                         <LocateFixed className="w-5 h-5 text-emerald-500" />
                     </button>
                 </div>
             </div>
@@ -246,11 +291,8 @@ const MapComponent = () => {
                 ref={setMapRef}
             >
                 <TileLayer
-                    url={theme === 'dark'
-                        ? "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
-                        : "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png"
-                    }
-                    attribution='&copy; OSM &copy; CARTO'
+                    url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                    attribution='&copy; OpenStreetMap contributors'
                 />
                 <ZoomControl position="bottomright" />
                 {/* MapUpdater removed to prevent snap-back loop */}
@@ -298,17 +340,17 @@ const MapComponent = () => {
                         chunkedLoading
                         maxClusterRadius={50}
                         spiderfyOnMaxZoom={true}
-                        iconCreateFunction={(cluster) => {
+                         iconCreateFunction={(cluster: { getChildCount: () => number }) => {
                             const count = cluster.getChildCount();
                             let size = 'w-10 h-10';
-                            let color = 'bg-cyan-500';
+                             let color = 'bg-emerald-500';
 
                             if (count > 100) {
                                 size = 'w-14 h-14';
-                                color = 'bg-blue-600';
+                                 color = 'bg-teal-600';
                             } else if (count > 20) {
                                 size = 'w-12 h-12';
-                                color = 'bg-cyan-600';
+                                 color = 'bg-emerald-600';
                             }
 
                             return L.divIcon({
@@ -361,7 +403,8 @@ const MapComponent = () => {
                                             <strong className="text-slate-800 dark:text-white leading-tight">{station.name}</strong>
                                             <button
                                                 onClick={() => toggleFavoriteStation(station.id)}
-                                                className="p-1 hover:bg-slate-100 dark:hover:bg-white/10 rounded transition-colors"
+                                                 aria-label="Toggle favorite station"
+                                                 className="flex h-11 w-11 items-center justify-center hover:bg-slate-100 dark:hover:bg-white/10 rounded-xl transition-colors"
                                             >
                                                 <Star className={`w-4 h-4 ${favorites.stations.includes(station.id) ? 'fill-yellow-400 text-yellow-500' : 'text-slate-400'}`} />
                                             </button>
@@ -384,7 +427,7 @@ const MapComponent = () => {
                                         {userLocation && (
                                             <button
                                                 onClick={() => fetchRoute(station.latitude, station.longitude)}
-                                                className="w-full flex items-center justify-center gap-2 py-2.5 bg-cyan-500 hover:bg-cyan-600 text-white rounded-xl text-xs font-black uppercase tracking-widest transition-all shadow-lg shadow-cyan-500/20"
+                                                 className="w-full flex items-center justify-center gap-2 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-black uppercase tracking-widest transition-all shadow-lg shadow-emerald-500/20"
                                             >
                                                 <Navigation className="w-3.5 h-3.5" />
                                                 Get Directions
@@ -410,13 +453,15 @@ const MapComponent = () => {
 const LayerToggle = ({ active, icon, label, onClick }: { active: boolean, icon: React.ReactNode, label: string, onClick: () => void }) => (
     <button
         onClick={onClick}
+        aria-pressed={active}
+        aria-label={`Toggle ${label} layer`}
         className={`flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all group/btn ${active
-            ? 'bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 border border-cyan-500/20'
+             ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20'
             : 'text-slate-500 hover:bg-slate-100 dark:hover:bg-white/5 border border-transparent'
             }`}
     >
         <span className={`transition-transform duration-300 ${active ? 'scale-110' : 'group-hover/btn:scale-110'}`}>{icon}</span>
-        <span className="text-xs font-bold uppercase tracking-widest">{label}</span>
+        <span className="hidden md:inline text-xs font-bold uppercase tracking-widest">{label}</span>
     </button>
 );
 

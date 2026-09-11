@@ -18,15 +18,15 @@ export const SmartLayers: React.FC = () => {
                 >
                     <Popup className="premium-popup">
                         <div className="p-2 min-w-[150px]">
-                            <h3 className="text-cyan-400 font-bold flex items-center gap-2">
+                            <h3 className="text-emerald-400 font-bold flex items-center gap-2">
                                 <Zap className="w-4 h-4" /> {station.title}
                             </h3>
                             <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider mt-1">{station.operator || 'Independent Operator'}</p>
                             <div className="mt-3 space-y-1">
                                 {station.connections.map((c, i) => (
-                                    <div key={i} className="text-[10px] bg-cyan-500/5 border border-cyan-500/10 rounded-lg px-2 py-1.5 flex justify-between items-center">
+                                    <div key={i} className="text-[10px] bg-emerald-500/5 border border-emerald-500/10 rounded-lg px-2 py-1.5 flex justify-between items-center">
                                         <span className="text-slate-600 dark:text-slate-300 font-medium">{c.type}</span>
-                                        <span className="font-black text-cyan-500">{c.powerKW}kW</span>
+                                        <span className="font-black text-emerald-500">{c.powerKW}kW</span>
                                     </div>
                                 ))}
                             </div>

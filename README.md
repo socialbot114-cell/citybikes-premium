@@ -1,5 +1,10 @@
 # React + TypeScript + Vite
 
+> Para onboarding e manutencao do CityBikes Premium, consulte primeiro
+> [`ONBOARDING.md`](./ONBOARDING.md). O restante deste arquivo e a documentacao
+> original do template Vite e sera substituido por uma referencia mais completa
+> quando o projeto ganhar sua documentacao de produto definitiva.
+
 This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
 
 Currently, two official plugins are available:

@@ -1,4 +1,6 @@
 import { createContext, useContext, useEffect, useState } from 'react';
+import { StatusBar, Style } from '@capacitor/status-bar';
+import { trackEvent } from '../lib/analytics';
 
 type Theme = 'light' | 'dark';
 
@@ -8,6 +10,17 @@ interface ThemeContextType {
 }
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
+
+function isNative(): boolean {
+    return !!window.Capacitor?.isNativePlatform?.();
+}
+
+async function setStatusBarStyle(theme: Theme) {
+    if (!isNative()) return;
+    await StatusBar.setStyle({
+        style: theme === 'dark' ? Style.Dark : Style.Light,
+    });
+}
 
 export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     const [theme, setTheme] = useState<Theme>(() => {
@@ -21,10 +34,15 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         root.classList.remove('light', 'dark');
         root.classList.add(theme);
         localStorage.setItem('theme', theme);
+        setStatusBarStyle(theme);
     }, [theme]);
 
     const toggleTheme = () => {
-        setTheme((prev) => (prev === 'light' ? 'dark' : 'light'));
+        setTheme((prev) => {
+            const next = prev === 'light' ? 'dark' : 'light';
+            trackEvent('THEME_CHANGED', { theme: next });
+            return next;
+        });
     };
 
     return (

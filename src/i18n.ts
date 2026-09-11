@@ -56,7 +56,21 @@ const resources = {
             "footer_api": "API",
             "footer_privacy": "Privacy Policy",
             "footer_connect": "Connect",
-            "footer_all_rights": "All rights reserved."
+            "footer_all_rights": "All rights reserved.",
+            "location_prompt": "Find bikes near you?",
+            "location_enable": "Enable location",
+             "location_denied_hint": "Location off — showing world view."
+             ,"location_active": "Location active"
+             ,"app_explore_label": "CityBikes Explore"
+             ,"app_home_title": "Find your next ride"
+             ,"app_home_nearby": "Bikes near you"
+             ,"app_home_subtitle": "Explore bike-sharing networks in cities around the world."
+             ,"app_home_nearby_subtitle": "Live availability from the networks around you."
+             ,"app_favorites": "Your favorites"
+             ,"app_suggested": "Suggested networks"
+             ,"app_networks": "networks"
+             ,"app_loading_networks": "Finding bike networks..."
+             ,"app_search_hint": "Search for a city or network above to get started."
         }
     },
     pt: {
@@ -105,7 +119,21 @@ const resources = {
             "footer_api": "API",
             "footer_privacy": "Política de Privacidade",
             "footer_connect": "Conectar",
-            "footer_all_rights": "Todos os direitos reservados."
+            "footer_all_rights": "Todos os direitos reservados.",
+            "location_prompt": "Encontrar bikes perto de você?",
+            "location_enable": "Ativar localização",
+             "location_denied_hint": "Localização desligada — mostrando visão mundial."
+             ,"location_active": "Localização ativa"
+             ,"app_explore_label": "Explorar CityBikes"
+             ,"app_home_title": "Encontre sua próxima viagem"
+             ,"app_home_nearby": "Bikes perto de você"
+             ,"app_home_subtitle": "Explore redes de bicicletas compartilhadas em cidades do mundo todo."
+             ,"app_home_nearby_subtitle": "Disponibilidade ao vivo nas redes ao seu redor."
+             ,"app_favorites": "Suas favoritas"
+             ,"app_suggested": "Redes sugeridas"
+             ,"app_networks": "redes"
+             ,"app_loading_networks": "Encontrando redes de bicicletas..."
+             ,"app_search_hint": "Busque uma cidade ou rede acima para começar."
         }
     },
     es: {
@@ -154,7 +182,21 @@ const resources = {
             "footer_api": "API",
             "footer_privacy": "Política de Privacidad",
             "footer_connect": "Conectar",
-            "footer_all_rights": "Todos los derechos reservados."
+            "footer_all_rights": "Todos los derechos reservados.",
+            "location_prompt": "¿Encontrar bicis cerca de ti?",
+            "location_enable": "Activar ubicación",
+             "location_denied_hint": "Ubicación desactivada — mostrando vista mundial."
+             ,"location_active": "Ubicación activa"
+             ,"app_explore_label": "Explorar CityBikes"
+             ,"app_home_title": "Encuentra tu próximo viaje"
+             ,"app_home_nearby": "Bicis cerca de ti"
+             ,"app_home_subtitle": "Explora redes de bicicletas compartidas en ciudades de todo el mundo."
+             ,"app_home_nearby_subtitle": "Disponibilidad en tiempo real de las redes cercanas."
+             ,"app_favorites": "Tus favoritas"
+             ,"app_suggested": "Redes sugeridas"
+             ,"app_networks": "redes"
+             ,"app_loading_networks": "Buscando redes de bicicletas..."
+             ,"app_search_hint": "Busca una ciudad o red arriba para comenzar."
         }
     },
     fr: {
@@ -203,7 +245,21 @@ const resources = {
             "footer_api": "API",
             "footer_privacy": "Politique de Confidentialité",
             "footer_connect": "Se Connecter",
-            "footer_all_rights": "Tous droits réservés."
+            "footer_all_rights": "Tous droits réservés.",
+            "location_prompt": "Trouver des vélos près de vous ?",
+            "location_enable": "Activer la localisation",
+             "location_denied_hint": "Localisation désactivée — vue mondiale."
+             ,"location_active": "Localisation active"
+             ,"app_explore_label": "Explorer CityBikes"
+             ,"app_home_title": "Trouvez votre prochain trajet"
+             ,"app_home_nearby": "Vélos près de vous"
+             ,"app_home_subtitle": "Explorez les réseaux de vélos en libre-service du monde entier."
+             ,"app_home_nearby_subtitle": "Disponibilité en temps réel des réseaux autour de vous."
+             ,"app_favorites": "Vos favoris"
+             ,"app_suggested": "Réseaux suggérés"
+             ,"app_networks": "réseaux"
+             ,"app_loading_networks": "Recherche de réseaux de vélos..."
+             ,"app_search_hint": "Recherchez une ville ou un réseau ci-dessus pour commencer."
         }
     }
 };

@@ -4,16 +4,16 @@ export const createCustomMarker = (color: string, iconHtml?: string) => {
     return L.divIcon({
         className: 'custom-marker',
         html: `
-            <div class="relative flex items-center justify-center w-8 h-8">
+            <div class="relative flex items-center justify-center w-7 h-7">
                 <div class="absolute inset-0 rounded-full animate-ping opacity-20" style="background-color: ${color}"></div>
                 <div class="absolute inset-0 rounded-full blur-md opacity-40" style="background-color: ${color}"></div>
-                <div class="relative w-5 h-5 rounded-full border-2 border-white shadow-lg transition-transform hover:scale-125 flex items-center justify-center" style="background-color: ${color}">
+                <div class="relative w-[18px] h-[18px] rounded-full border-2 border-white shadow-lg transition-transform hover:scale-125 flex items-center justify-center" style="background-color: ${color}">
                     ${iconHtml || ''}
                 </div>
             </div>
         `,
-        iconSize: [32, 32],
-        iconAnchor: [16, 16],
+        iconSize: [28, 28],
+        iconAnchor: [14, 14],
     });
 };
 

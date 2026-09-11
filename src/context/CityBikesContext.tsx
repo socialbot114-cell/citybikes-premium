@@ -1,14 +1,19 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import type { Network, NetworkDetail, Location, WeatherCondition, AirQuality, Earthquake, ChargeStation, POI } from '../types';
 import { fetchNetworks, fetchNetworkDetails } from '../api/citybikes';
 import * as smartCity from '../api/smartCity';
+import { getCurrentPosition } from '../lib/geolocation';
+import { trackEvent } from '../lib/analytics';
 
 interface CityBikesContextProps {
     networks: Network[];
     loading: boolean;
-    userLocation: Location | null;
+    networksError: Error | null;
     refreshNetworks: () => void;
+    userLocation: Location | null;
+    locationStatus: 'idle' | 'requesting' | 'granted' | 'denied';
+    requestLocation: () => Promise<void>;
     selectedNetwork: NetworkDetail | null;
     selectNetwork: (id: string) => void;
     clearSelection: () => void;
@@ -43,12 +48,21 @@ const CityBikesContext = createContext<CityBikesContextProps | undefined>(undefi
 
 export const CityBikesProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     const [userLocation, setUserLocation] = useState<Location | null>(null);
+    const [locationStatus, setLocationStatus] = useState<'idle' | 'requesting' | 'granted' | 'denied'>('idle');
     const [selectedNetworkId, setSelectedNetworkId] = useState<string | null>(null);
     const [mapCenter, setMapCenter] = useState<{ lat: number, lon: number } | null>(null);
     const [currentRoute, setCurrentRoute] = useState<[number, number][] | null>(null);
     const [favorites, setFavorites] = useState<{ networks: string[], stations: string[] }>(() => {
-        const saved = localStorage.getItem('citybikes_favorites');
-        return saved ? JSON.parse(saved) : { networks: [], stations: [] };
+        try {
+            const saved = localStorage.getItem('citybikes_favorites');
+            const parsed = saved ? JSON.parse(saved) : { networks: [], stations: [] };
+            if (!parsed || !Array.isArray(parsed.networks) || !Array.isArray(parsed.stations)) {
+                return { networks: [], stations: [] };
+            }
+            return parsed;
+        } catch {
+            return { networks: [], stations: [] };
+        }
     });
     const [smartLayers, setSmartLayers] = useState({
         weather: true,
@@ -119,24 +133,47 @@ export const CityBikesProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         setMapCenter({ lat, lon });
     };
 
+    const routeControllerRef = useRef<AbortController | null>(null);
+
+    const clearRoute = () => {
+        routeControllerRef.current?.abort();
+        routeControllerRef.current = null;
+        setCurrentRoute(null);
+    };
+
     const fetchRoute = async (toLat: number, toLon: number) => {
         if (!userLocation) return;
+        clearRoute();
+        const controller = new AbortController();
+        routeControllerRef.current = controller;
+        const timeout = setTimeout(() => controller.abort(), 15000);
         try {
             const url = `https://router.project-osrm.org/route/v1/cycling/${userLocation.longitude},${userLocation.latitude};${toLon},${toLat}?overview=full&geometries=geojson`;
-            const response = await fetch(url);
+            const response = await fetch(url, { signal: controller.signal });
+            if (!response.ok) throw new Error(`OSRM ${response.status}`);
             const data = await response.json();
-            if (data.routes && data.routes.length > 0) {
-                const coords = data.routes[0].geometry.coordinates.map((c: [number, number]) => [c[1], c[0]]);
+            if (data?.routes?.length && data.routes[0].geometry?.coordinates?.length) {
+                const coords: [number, number][] = data.routes[0].geometry.coordinates.map((c: [number, number]) => [c[1], c[0]]);
                 setCurrentRoute(coords);
+                trackEvent('ROUTE_REQUESTED', { result: 'success' });
+            } else {
+                setCurrentRoute(null);
+                trackEvent('ROUTE_REQUESTED', { result: 'empty' });
             }
-        } catch (error) {
-            console.error("Failed to fetch route", error);
+        } catch (error: unknown) {
+            const reason = error instanceof Error && error.name === 'AbortError' ? 'route request cancelled or timed out' : error;
+            console.error("Failed to fetch route", reason);
+            setCurrentRoute(null);
+        } finally {
+            clearTimeout(timeout);
+            if (routeControllerRef.current === controller) {
+                routeControllerRef.current = null;
+            }
         }
     };
 
-    const clearRoute = () => setCurrentRoute(null);
-
     const toggleFavoriteNetwork = (id: string) => {
+        trackEvent('FAVORITE_NETWORK_TOGGLED');
         setFavorites(prev => {
             const exists = prev.networks.includes(id);
             return {
@@ -147,6 +184,7 @@ export const CityBikesProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     };
 
     const toggleFavoriteStation = (id: string) => {
+        trackEvent('FAVORITE_STATION_TOGGLED');
         setFavorites(prev => {
             const exists = prev.stations.includes(id);
             return {
@@ -157,6 +195,7 @@ export const CityBikesProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     };
 
     const toggleSmartLayer = (layer: keyof typeof smartLayers) => {
+        trackEvent('SMART_LAYER_TOGGLED', { layer });
         setSmartLayers(prev => ({ ...prev, [layer]: !prev[layer] }));
     };
 
@@ -165,26 +204,27 @@ export const CityBikesProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         setCurrentRoute(null);
     };
 
-    useEffect(() => {
-        if (navigator.geolocation) {
-            navigator.geolocation.getCurrentPosition(
-                (position) => {
-                    const loc = {
-                        latitude: position.coords.latitude,
-                        longitude: position.coords.longitude,
-                        city: 'Current Location',
-                        country: ''
-                    };
-                    setUserLocation(loc);
-                    setMapCenter({
-                        lat: position.coords.latitude,
-                        lon: position.coords.longitude
-                    });
-                },
-                (error) => console.error(error)
-            );
+    const requestLocation = async () => {
+        if (locationStatus === 'requesting' || locationStatus === 'granted') return;
+        setLocationStatus('requesting');
+        try {
+            const coords = await getCurrentPosition();
+            const loc: Location = {
+                latitude: coords.latitude,
+                longitude: coords.longitude,
+                city: 'Current Location',
+                country: ''
+            };
+            setUserLocation(loc);
+            setMapCenter({ lat: coords.latitude, lon: coords.longitude });
+            setLocationStatus('granted');
+            trackEvent('LOCATION_PERMISSION_RESULT', { result: 'granted' });
+        } catch (error) {
+            console.error('Location denied or unavailable', error);
+            setLocationStatus('denied');
+            trackEvent('LOCATION_PERMISSION_RESULT', { result: 'denied' });
         }
-    }, []);
+    };
 
     const loading = networksQuery.isLoading || selectedNetworkQuery.isFetching;
 
@@ -192,7 +232,10 @@ export const CityBikesProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         <CityBikesContext.Provider value={{
             networks: networksQuery.data || [],
             loading,
+            networksError: networksQuery.error ?? null,
             userLocation,
+            locationStatus,
+            requestLocation,
             refreshNetworks: () => networksQuery.refetch(),
             selectedNetwork: selectedNetworkQuery.data || null,
             selectNetwork,
